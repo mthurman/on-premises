@@ -576,3 +576,10 @@ variable "polyotmic_efs_caching" {
   description = "Enable EFS caching"
   default     = false
 }
+
+
+variable "restrict_ingress_to_security_groups" {
+  type        = bool
+  default     = false
+  description = "Restrict task HTTP ingress to the load balancer security groups and managed PostgreSQL/Redis ingress to the task security group. Apply once with false to install these caller rules, then set true to remove legacy CIDR grants. Confirm additional clients before enabling."
+}

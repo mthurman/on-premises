@@ -8,7 +8,7 @@ module "database_sg" {
   vpc_id = var.vpc_id == "" ? module.vpc[0].vpc_id : var.vpc_id
 
   # ingress
-  ingress_with_cidr_blocks = [
+  ingress_with_cidr_blocks = var.restrict_ingress_to_security_groups ? [] : [
     {
       from_port   = var.database_port
       to_port     = var.database_port
@@ -17,6 +17,15 @@ module "database_sg" {
       cidr_blocks = join(",", local.private_subnet_cidrs)
     },
   ]
+
+  computed_ingress_with_source_security_group_id = [{
+    from_port                = var.database_port
+    to_port                  = var.database_port
+    protocol                 = "tcp"
+    description              = "Database access from Polytomic tasks"
+    source_security_group_id = module.fargate_sg.security_group_id
+  }]
+  number_of_computed_ingress_with_source_security_group_id = 1
 
   tags = merge(
     var.tags,
@@ -35,7 +44,7 @@ module "fargate_sg" {
   vpc_id = var.vpc_id == "" ? module.vpc[0].vpc_id : var.vpc_id
 
   # ingress
-  ingress_with_cidr_blocks = [
+  ingress_with_cidr_blocks = var.restrict_ingress_to_security_groups ? [] : [
     {
       from_port   = var.polytomic_port
       to_port     = var.polytomic_port
@@ -44,6 +53,17 @@ module "fargate_sg" {
 
     },
   ]
+
+  computed_ingress_with_source_security_group_id = [
+    for sg in local.lb_sgs : {
+      from_port                = var.polytomic_port
+      to_port                  = var.polytomic_port
+      protocol                 = "tcp"
+      description              = "HTTP access from Polytomic load balancer"
+      source_security_group_id = sg
+    }
+  ]
+  number_of_computed_ingress_with_source_security_group_id = length(local.lb_sgs)
 
   egress_with_cidr_blocks = [
     {
