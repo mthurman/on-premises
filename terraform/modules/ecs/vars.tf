@@ -15,6 +15,12 @@ variable "polytomic_image" {
   description = "Docker image to use for the Polytomic ECS cluster"
 }
 
+variable "polytomic_services_enabled" {
+  description = "Whether to run Polytomic ECS services. When false, all five service desired counts are zero; service resources and data stores are retained."
+  type        = bool
+  default     = true
+}
+
 variable "polytomic_single_player" {
   default     = false
   description = "Whether to use the single player mode"

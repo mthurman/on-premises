@@ -362,6 +362,7 @@ module "polytomic-ecs" {
 | <a name="input_polytomic_resource_worker_cpu"></a> [polytomic\_resource\_worker\_cpu](#input\_polytomic\_resource\_worker\_cpu) | CPU units for the worker container | `number` | `2048` | no |
 | <a name="input_polytomic_resource_worker_memory"></a> [polytomic\_resource\_worker\_memory](#input\_polytomic\_resource\_worker\_memory) | Memory units for the worker container | `number` | `4096` | no |
 | <a name="input_polytomic_root_user"></a> [polytomic\_root\_user](#input\_polytomic\_root\_user) | The email address to use when starting for the first time; this user will be able to add additional users and configure Polytomic | `string` | `""` | no |
+| <a name="input_polytomic_services_enabled"></a> [polytomic\_services\_enabled](#input\_polytomic\_services\_enabled) | Whether to run Polytomic ECS services. When false, all five service desired counts are zero; service resources and data stores are retained. | `bool` | `true` | no |
 | <a name="input_polytomic_single_player"></a> [polytomic\_single\_player](#input\_polytomic\_single\_player) | Whether to use the single player mode | `bool` | `false` | no |
 | <a name="input_polytomic_sso_domain"></a> [polytomic\_sso\_domain](#input\_polytomic\_sso\_domain) | Domain for SSO users of first Polytomic workspace; ie, example.com. | `string` | `""` | no |
 | <a name="input_polytomic_sync_logging_enabled"></a> [polytomic\_sync\_logging\_enabled](#input\_polytomic\_sync\_logging\_enabled) | Record execution logs for syncs performed via Polytomic | `bool` | `true` | no |
