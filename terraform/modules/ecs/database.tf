@@ -35,6 +35,7 @@ module "database" {
   create_cloudwatch_log_group     = var.database_create_cloudwatch_log_group
 
   backup_retention_period = var.database_backup_retention
+  copy_tags_to_snapshot   = true
   skip_final_snapshot     = var.database_skip_final_snapshot
   deletion_protection     = var.database_deletion_protection
 
