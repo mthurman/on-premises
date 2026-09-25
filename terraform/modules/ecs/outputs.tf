@@ -35,3 +35,8 @@ output "override_task_definition" {
 output "cluster_arn" {
   value = var.ecs_cluster_name == "" ? module.ecs[0].cluster_arn : data.aws_ecs_cluster.cluster[0].arn
 }
+
+output "task_secrets_arn" {
+  description = "Task configuration secret ARN for scoped reader policies."
+  value       = aws_secretsmanager_secret.task_secrets.arn
+}
