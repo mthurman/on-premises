@@ -1,156 +1,112 @@
 module "database_sg" {
-  source  = "terraform-aws-modules/security-group/aws"
-  version = "~> 4.0"
-
-  count = var.database_endpoint == "" ? 1 : 0
+  source = "./modules/security-group"
+  count  = var.database_endpoint == "" ? 1 : 0
 
   name   = "${var.prefix}-database-sg"
   vpc_id = var.vpc_id == "" ? module.vpc[0].vpc_id : var.vpc_id
+  tags   = var.tags
 
-  # ingress
-  ingress_with_cidr_blocks = var.restrict_ingress_to_security_groups ? [] : [
-    {
-      from_port   = var.database_port
-      to_port     = var.database_port
-      protocol    = "tcp"
-      description = "Database access from within VPC"
-      cidr_blocks = join(",", local.private_subnet_cidrs)
+  ingress = merge(
+    var.restrict_ingress_to_security_groups ? {} : {
+      for index, cidr in local.private_subnet_cidrs : "private_${index}" => {
+        cidr_ipv4   = cidr
+        ip_protocol = "tcp"
+        port        = var.database_port
+        description = "Database access from within VPC"
+      }
     },
-  ]
-
-  computed_ingress_with_source_security_group_id = [{
-    from_port                = var.database_port
-    to_port                  = var.database_port
-    protocol                 = "tcp"
-    description              = "Database access from Polytomic tasks"
-    source_security_group_id = module.fargate_sg.security_group_id
-  }]
-  number_of_computed_ingress_with_source_security_group_id = 1
-
-  tags = merge(
-    var.tags,
     {
-      Name = "${var.prefix}-database-sg"
-    }
+      tasks = {
+        security_group_id = module.fargate_sg.security_group_id
+        ip_protocol       = "tcp"
+        port              = var.database_port
+        description       = "Database access from Polytomic tasks"
+      }
+    },
   )
 }
 
-
 module "fargate_sg" {
-  source  = "terraform-aws-modules/security-group/aws"
-  version = "~> 4.0"
+  source = "./modules/security-group"
 
   name   = "${var.prefix}-fargate_task"
   vpc_id = var.vpc_id == "" ? module.vpc[0].vpc_id : var.vpc_id
+  tags   = var.tags
 
-  # ingress
-  ingress_with_cidr_blocks = var.restrict_ingress_to_security_groups ? [] : [
-    {
-      from_port   = var.polytomic_port
-      to_port     = var.polytomic_port
-      protocol    = "tcp"
-      cidr_blocks = "0.0.0.0/0"
-
+  ingress = merge(
+    var.restrict_ingress_to_security_groups ? {} : {
+      public = {
+        cidr_ipv4   = "0.0.0.0/0"
+        ip_protocol = "tcp"
+        port        = var.polytomic_port
+        description = "Public HTTP access to Polytomic tasks"
+      }
     },
-  ]
-
-  computed_ingress_with_source_security_group_id = [
-    for sg in local.lb_sgs : {
-      from_port                = var.polytomic_port
-      to_port                  = var.polytomic_port
-      protocol                 = "tcp"
-      description              = "HTTP access from Polytomic load balancer"
-      source_security_group_id = sg
-    }
-  ]
-  number_of_computed_ingress_with_source_security_group_id = length(local.lb_sgs)
-
-  egress_with_cidr_blocks = [
     {
-      from_port   = 0
-      to_port     = 0
-      protocol    = "-1"
-      cidr_blocks = "0.0.0.0/0"
+      for index, sg in local.lb_sgs : "load_balancer_${index}" => {
+        security_group_id = sg
+        ip_protocol       = "tcp"
+        port              = var.polytomic_port
+        description       = "HTTP access from Polytomic load balancer"
+      }
     },
-  ]
-
-  tags = merge(
-    var.tags,
-    {
-      Name = "${var.prefix}-fargate_task"
-    }
   )
+
+  egress = {
+    ipv4 = {
+      cidr_ipv4   = "0.0.0.0/0"
+      ip_protocol = "-1"
+      description = "Outbound IPv4 access for Polytomic tasks"
+    }
+  }
 }
 
-
 module "efs_sg" {
-  source  = "terraform-aws-modules/security-group/aws"
-  version = "~> 4.0"
+  source = "./modules/security-group"
 
   name   = "${var.prefix}-efs"
   vpc_id = var.vpc_id == "" ? module.vpc[0].vpc_id : var.vpc_id
+  tags   = var.tags
 
-  # ingress
-  ingress_with_cidr_blocks = [
-    {
-      from_port   = 2049
-      to_port     = 2049
-      protocol    = "-1"
-      cidr_blocks = join(",", local.private_subnet_cidrs)
-
-    },
-  ]
-
-  tags = merge(
-    var.tags,
-    {
-      Name = "${var.prefix}-efs"
+  # The legacy rule specified port 2049 with protocol -1, which allows every
+  # protocol and port. Preserve that access during the tagging migration.
+  ingress = {
+    for index, cidr in local.private_subnet_cidrs : "private_${index}" => {
+      cidr_ipv4   = cidr
+      ip_protocol = "-1"
+      description = "Legacy all-protocol access from a Polytomic private subnet"
     }
-  )
+  }
 }
 
-
 module "lb_sg" {
-  source  = "terraform-aws-modules/security-group/aws"
-  version = "~> 4.0"
-
-  count = length(var.load_balancer_security_groups) == 0 ? 1 : 0
+  source = "./modules/security-group"
+  count  = length(var.load_balancer_security_groups) == 0 ? 1 : 0
 
   name   = "${var.prefix}-lb"
   vpc_id = var.vpc_id == "" ? module.vpc[0].vpc_id : var.vpc_id
+  tags   = var.tags
 
-  # ingress
-  ingress_with_cidr_blocks = [
-    {
-      protocol    = "tcp"
-      from_port   = 80
-      to_port     = 80
-      cidr_blocks = "0.0.0.0/0"
-
-    },
-    {
-      protocol    = "tcp"
-      from_port   = 443
-      to_port     = 443
-      cidr_blocks = "0.0.0.0/0"
-
-    },
-  ]
-
-  egress_with_cidr_blocks = [
-    {
-      from_port   = 0
-      to_port     = 0
-      protocol    = "-1"
-      cidr_blocks = "0.0.0.0/0"
-    },
-  ]
-
-  tags = merge(
-    var.tags,
-    {
-      Name = "${var.prefix}-lb"
+  ingress = {
+    http = {
+      cidr_ipv4   = "0.0.0.0/0"
+      ip_protocol = "tcp"
+      port        = 80
+      description = "Public HTTP access to the Polytomic load balancer"
     }
-  )
-}
+    https = {
+      cidr_ipv4   = "0.0.0.0/0"
+      ip_protocol = "tcp"
+      port        = 443
+      description = "Public HTTPS access to the Polytomic load balancer"
+    }
+  }
 
+  egress = {
+    ipv4 = {
+      cidr_ipv4   = "0.0.0.0/0"
+      ip_protocol = "-1"
+      description = "Outbound IPv4 access for the Polytomic load balancer"
+    }
+  }
+}
